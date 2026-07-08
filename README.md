@@ -16,5 +16,5 @@ uvicorn main:app --reload
 
 cd BaggageGuardian/frontend
 npm install    # only first time
-npm run dev
+npm run dev  
 
