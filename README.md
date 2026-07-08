@@ -1,8 +1,6 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/status-production--ready-brightgreen" alt="Production Ready" />
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+" />
   <img src="https://img.shields.io/badge/node-18%2B-green" alt="Node 18+" />
-  <img src="https://img.shields.io/badge/license-MIT-yellow" alt="License MIT" />
 </p>
 
 # 🛡️ Baggage Guardian
