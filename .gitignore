@@ -1,0 +1,23 @@
+# OS files
+.DS_Store
+**/.DS_Store
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/package-lock.json
+
+# Logs
+*.log
+
+# Model weights (optional; keep if you want to publish the trained model)
+# backend/weights/
