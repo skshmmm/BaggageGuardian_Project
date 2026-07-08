@@ -8,7 +8,6 @@ import { Stepper } from "./components/Stepper";
 import { UploadStep } from "./components/UploadStep";
 import { ResultsStep } from "./components/ResultsStep";
 import { PhotoTipsPanel } from "./components/PhotoTipsPanel";
-import { PdfReportButton } from "./components/PdfReportButton";
 
 const API_BASE_URL = "http://localhost:8000"; // FastAPI backend
 
@@ -103,24 +102,12 @@ function App() {
             <ResultsStep
               response={response}
               postImagePreviews={postImagePreviews}
-              onGeneratePdf={() => {}}
             />
           )}
         </main>
 
         <PhotoTipsPanel />
       </div>
-
-      {/* Use the shared PdfReportButton inside ResultsStep instead of onGeneratePdf if you prefer */}
-      {response && (
-        <div style={{ display: "none" }}>
-          {/* placeholder to show how PdfReportButton is used if not inside ResultsStep */}
-          <PdfReportButton
-            response={response}
-            postImagePreviews={postImagePreviews}
-          />
-        </div>
-      )}
     </div>
   );
 }

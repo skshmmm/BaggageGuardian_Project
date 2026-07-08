@@ -2,17 +2,16 @@
 import React from "react";
 import type { AnalyzeResponse, ImageResult } from "../types";
 import { SeverityBadge, severityColor } from "./SeverityBadge";
+import { PdfReportButton } from "./PdfReportButton";
 
 type Props = {
   response: AnalyzeResponse;
   postImagePreviews: string[];
-  onGeneratePdf: () => void;
 };
 
 export const ResultsStep: React.FC<Props> = ({
   response,
   postImagePreviews,
-  onGeneratePdf,
 }) => {
   const renderPostImageWithOverlay = (
     previewUrl: string,
@@ -85,9 +84,10 @@ export const ResultsStep: React.FC<Props> = ({
       </div>
 
       <div className="report-actions">
-        <button className="secondary-btn" onClick={onGeneratePdf}>
-          Generate PDF Report
-        </button>
+        <PdfReportButton
+          response={response}
+          postImagePreviews={postImagePreviews}
+        />
         <button className="ghost-btn">
           Continue for Claim (placeholder)
         </button>
