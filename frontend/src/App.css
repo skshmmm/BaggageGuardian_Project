@@ -125,25 +125,28 @@ body {
 .image-container {
   position: relative;
   width: 100%;
-  overflow: hidden;
   border-radius: 10px;
   border: 1px solid rgba(51, 65, 85, 0.9);
   margin-top: 8px;
   background: #020617;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .image-container.small {
-  max-height: 260px;
+  max-width: 100%;
 }
 
 .image-container.tiny {
-  max-height: 120px;
+  max-width: 100%;
 }
 
 .image {
   display: block;
   width: 100%;
   height: auto;
+  border-radius: 10px;
 }
 
 .post-preview-grid {
