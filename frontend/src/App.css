@@ -129,9 +129,7 @@ body {
   border: 1px solid rgba(51, 65, 85, 0.9);
   margin-top: 8px;
   background: #020617;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  overflow: hidden;
 }
 
 .image-container.small {
@@ -147,6 +145,8 @@ body {
   width: 100%;
   height: auto;
   border-radius: 10px;
+  position: relative;
+  z-index: 1;
 }
 
 .post-preview-grid {
@@ -271,20 +271,26 @@ body {
 .image-container .bbox {
   position: absolute;
   border: 2px solid #fbbf24;
-  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.8);
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.8), 0 0 8px rgba(251, 191, 36, 0.4);
   pointer-events: none;
+  z-index: 10;
+  border-radius: 2px;
+  background: rgba(251, 191, 36, 0.05);
 }
 
 .bbox-label {
   position: absolute;
-  top: -18px;
+  top: -22px;
   left: 0;
-  font-size: 0.65rem;
-  padding: 2px 4px;
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.95);
-  color: #e5e7eb;
-  border: 1px solid rgba(148, 163, 184, 0.8);
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 3px 6px;
+  border-radius: 3px;
+  background: rgba(15, 23, 42, 0.98);
+  color: #fbbf24;
+  border: 1px solid #fbbf24;
+  white-space: nowrap;
+  z-index: 11;
 }
 
 .severity-badge {
