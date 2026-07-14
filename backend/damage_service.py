@@ -32,6 +32,7 @@ def normalize_box(xmin, ymin, xmax, ymax, width, height):
 def compute_damage_mask(pre_roi: np.ndarray, post_roi: np.ndarray) -> np.ndarray:
     """
     Compute binary mask of new damage between pre and post cropped regions.
+    Sensitive to scratches, dents, tears, and other surface damage.
     """
     if pre_roi is None or post_roi is None:
         return np.zeros((0, 0), dtype=np.uint8)
@@ -44,27 +45,56 @@ def compute_damage_mask(pre_roi: np.ndarray, post_roi: np.ndarray) -> np.ndarray
     pre_gray = cv2.cvtColor(pre, cv2.COLOR_BGR2GRAY)
     post_gray = cv2.cvtColor(post, cv2.COLOR_BGR2GRAY)
 
+    # Apply Gaussian blur for noise reduction
     pre_blur = cv2.GaussianBlur(pre_gray, (5, 5), 0)
     post_blur = cv2.GaussianBlur(post_gray, (5, 5), 0)
 
+    # Compute absolute difference
     diff = cv2.absdiff(pre_blur, post_blur)
+    diff = cv2.GaussianBlur(diff, (3, 3), 0)
 
-    # Use adaptive thresholding so faint damage differences still surface.
-    _, thresh = cv2.threshold(diff, 25, 255, cv2.THRESH_BINARY)
+    # Multiple threshold strategies to catch different damage types:
+    # 1. Fixed threshold - catches major changes (tears, dents)
+    _, fixed_thresh = cv2.threshold(diff, 10, 255, cv2.THRESH_BINARY)
+    
+    # 2. Adaptive threshold - catches subtle changes (scratches, texture changes)
+    adaptive_thresh = cv2.adaptiveThreshold(
+        diff,
+        255,
+        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv2.THRESH_BINARY,
+        31,
+        4,
+    )
+    
+    # 3. Otsu's method - automatic threshold for extreme contrasts
+    _, otsu_thresh = cv2.threshold(diff, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    
+    # Combine all thresholds to capture various damage types
+    thresh = cv2.bitwise_or(fixed_thresh, adaptive_thresh)
+    thresh = cv2.bitwise_or(thresh, otsu_thresh)
 
-    kernel = np.ones((3, 3), np.uint8)
+    # Morphological operations
+    kernel = np.ones((2, 2), np.uint8)
     thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=1)
-    thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel, iterations=2)
-    thresh = cv2.dilate(thresh, kernel, iterations=1)
-
+    thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel, iterations=1)
+    
     return thresh
 
 
-def extract_damage_contours(mask: np.ndarray, min_area: int = 30) -> List[np.ndarray]:
+def extract_damage_contours(mask: np.ndarray, min_area: int = 8) -> List[np.ndarray]:
+    """Extract contours from damage mask.
+    
+    Args:
+        mask: Binary mask of damage
+        min_area: Minimum contour area to consider (in pixels).
+                 Lower value catches subtle damage like scratches.
+    """
     if mask.size == 0:
         return []
 
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # Lowered minimum area from 15 to 8 to catch smaller scratches and minor dents
     filtered = [cnt for cnt in contours if cv2.contourArea(cnt) >= min_area]
     return filtered
 
@@ -72,12 +102,23 @@ def extract_damage_contours(mask: np.ndarray, min_area: int = 30) -> List[np.nda
 # ---------- Severity Scoring ----------
 
 def compute_severity(damage_area: float, bag_area: float) -> str:
+    """
+    Classify damage severity based on area ratio.
+    Accounts for different damage types (scratches, dents, tears, etc.)
+    """
     if bag_area <= 0:
         return "none"
 
     ratio = damage_area / bag_area
 
-    if ratio < 0.05:
+    # More nuanced thresholds to better distinguish damage types:
+    # - Scratches/minor dents: 0.01-0.05 (low)
+    # - Moderate dents/tears: 0.05-0.15 (medium)
+    # - Major tears/structural damage: >0.15 (high)
+    
+    if ratio < 0.01:
+        return "none"
+    elif ratio < 0.05:
         return "low"
     elif ratio < 0.15:
         return "medium"
@@ -95,8 +136,8 @@ def severity_rank(severity: str) -> int:
 def analyze_single_post_image(
     pre_img: np.ndarray,
     post_img: np.ndarray,
-    damage_class_id: int = 0,
-    yolo_conf: float = 0.3,
+    damage_class_id: int | None = None,
+    yolo_conf: float = 0.25,
 ) -> Dict[str, Any]:
     """
     Run YOLO on post_img, refine with OpenCV diff vs pre_img,
@@ -115,6 +156,7 @@ def analyze_single_post_image(
 
     detections = []
     total_damage_area = 0.0
+    yolo_box_found = False
 
     # Assume one image in results
     for r in yolo_results:
@@ -123,8 +165,18 @@ def analyze_single_post_image(
 
         for box in r.boxes:
             cls_id = int(box.cls[0])
-            if cls_id != damage_class_id:
-                continue  # only damage class
+            conf = float(box.conf[0])
+            
+            if damage_class_id is not None and cls_id != damage_class_id:
+                continue
+
+            # Accept all classes from the YOLO model (YOLOv11 is trained on damage types)
+            # The model should only output damage-related classes, so we don't need strict filtering
+            class_name = None
+            if hasattr(model, "names") and model.names is not None:
+                class_name = model.names.get(cls_id, "")
+
+            yolo_box_found = True
 
             # xyxy box
             x1, y1, x2, y2 = box.xyxy[0].tolist()
@@ -147,8 +199,30 @@ def analyze_single_post_image(
             mask = compute_damage_mask(pre_roi, post_roi)
             contours = extract_damage_contours(mask)
 
+            box_area = (xmax - xmin) * (ymax - ymin)
+
             if not contours:
-                continue  # YOLO region but no new damage detected
+                detections.append(
+                    {
+                        "box": normalize_box(xmin, ymin, xmax, ymax, w, h),
+                        "local_damage_area": 0.0,
+                        "box_area": box_area,
+                        "severity": "low",
+                        "method": "yolo+opencv",
+                    }
+                )
+                continue
+
+            contour = max(contours, key=cv2.contourArea)
+            contour_points = contour.reshape(-1, 2)
+            if len(contour_points) > 0:
+                ys, xs = contour_points[:, 1], contour_points[:, 0]
+                refined_xmin = max(0, xmin + int(xs.min()))
+                refined_ymin = max(0, ymin + int(ys.min()))
+                refined_xmax = min(w - 1, xmin + int(xs.max()))
+                refined_ymax = min(h - 1, ymin + int(ys.max()))
+            else:
+                refined_xmin, refined_ymin, refined_xmax, refined_ymax = xmin, ymin, xmax, ymax
 
             # Sum contour area in ROI
             roi_damage_area = sum(cv2.contourArea(c) for c in contours)
@@ -157,25 +231,26 @@ def analyze_single_post_image(
             # NOTE: contour areas are in ROI pixels; it's fine for ratio computation
             total_damage_area += roi_damage_area
 
-            box_area = (xmax - xmin) * (ymax - ymin)
-            box_severity = compute_severity(roi_damage_area, box_area)
+            refined_box_area = (refined_xmax - refined_xmin) * (refined_ymax - refined_ymin)
+            box_severity = compute_severity(roi_damage_area, refined_box_area)
 
             detections.append(
                 {
-                    "box": normalize_box(xmin, ymin, xmax, ymax, w, h),
+                    "box": normalize_box(refined_xmin, refined_ymin, refined_xmax, refined_ymax, w, h),
                     "local_damage_area": roi_damage_area,
-                    "box_area": box_area,
+                    "box_area": refined_box_area,
                     "severity": box_severity,
                     "method": "yolo+opencv",
                 }
             )
 
-    # --- 2. Fallback: full-image diff if no YOLO detections ---
+    # --- 2. Fallback: full-image diff only if YOLO never identified a damage box ---
     used_fallback = False
-    if len(detections) == 0:
+    if len(detections) == 0 and not yolo_box_found:
         used_fallback = True
         mask = compute_damage_mask(pre_img, post_img)
-        contours = extract_damage_contours(mask, min_area=40)
+        # Use lower min_area for full image to catch subtle damage
+        contours = extract_damage_contours(mask, min_area=8)
 
         total_damage_area = sum(cv2.contourArea(c) for c in contours)
         bag_area = w * h

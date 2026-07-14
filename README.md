@@ -371,12 +371,6 @@ We welcome contributions! Please see [`CONTRIBUTING.md`](./CONTRIBUTING.md) for:
 
 ---
 
-## 📄 License
-
-This project is licensed under the MIT License. See [`LICENSE`](./LICENSE) for full details.
-
----
-
 ## 🙏 Acknowledgments
 
 - [Ultralytics](https://github.com/ultralytics/ultralytics) for the YOLOv8 framework
