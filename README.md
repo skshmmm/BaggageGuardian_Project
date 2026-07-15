@@ -7,7 +7,7 @@
 
 **AI-Powered Baggage Damage Verification System**
 
-Baggage Guardian is a production-grade application that uses computer vision and deep learning to automatically detect and assess damage to luggage by comparing pre-flight and post-flight photographs. Built with **YOLOv8** for object detection, **OpenCV** for pixel-level difference analysis, **FastAPI** for a high-performance backend, and **React + TypeScript** for a modern, responsive frontend.
+Baggage Guardian is a production-grade application that uses computer vision and deep learning to automatically detect and assess damage to luggage by comparing pre-flight and post-flight photographs. Built with **YOLOv8** for object detection, **OpenCV** for pixel-level difference analysis, **FastAPI** for a high-performance backend, and **React + TypeScript** for a modern, responsive frontend..
 
 ---
 
