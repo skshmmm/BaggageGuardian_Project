@@ -322,7 +322,7 @@ python -m unittest discover tests/
 
 Current test coverage includes:
 - Fallback detection validation (small damage region triggers OpenCV fallback)
-- Detection pipeline integration tests.
+- Detection pipeline integration tests..
 
 ### Frontend (Coming Soon)
 
